@@ -10,11 +10,7 @@ Metaball functions are envaluated on GPU or CPU, but GPU mode performs about 10x
 Where *r* is radius of the metaball, and *d* is distance from metaball's center to current point. Additional functions can be quickly added as a new compute shader based on the existing one.
 
 ## TODO list:
-<<<<<<< HEAD
 * add more falloff functions
-=======
-* add more fallof functions
->>>>>>> 1c23f6aa55034b85387946d2b79bc9e542b0f215
 * move marching cubes algorithm to GPU
 * create example scene with rigidbody metaballs
 
