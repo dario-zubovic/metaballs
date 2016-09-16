@@ -9,6 +9,12 @@ Metaball functions are envaluated on GPU or CPU, but GPU mode performs about 10x
 
 Where *r* is radius of the metaball, and *d* is distance from metaball's center to current point. Additional functions can be quickly added as a new compute shader based on the existing one.
 
-References:
+## TODO list:
+* add more fallof functions
+* move marching cubes algorithm to GPU
+* create example scene with rigidbody metaballs
+
+## References:
 * William E. Lorensen and Harvey E. Cline. 1987. Marching cubes: A high resolution 3D surface construction algorithm. In Proceedings of the 14th annual conference on Computer graphics and interactive techniques (SIGGRAPH '87), Maureen C. Stone (Ed.). ACM, New York, NY, USA, 163-169.
+* Marching cubes lookup tables taken from here: http://www.paulsprojects.net/opengl/metaballs/metaballs.html
 * Brian Wyvill and Geoff Wyvill. Field functions for implicit surfaces. The Visual Computer, 5:75–82, December 1989.
