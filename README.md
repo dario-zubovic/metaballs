@@ -1,7 +1,8 @@
 # Unity 3D metaballs
 Unity 3D implementation of marching cubes algorithm for rendering metaballs. Metaballs can be used for gameplay purposes (gels in Valve's Portal 2), or as a decoration, as shown in the image below. They can also be used to visualise various fields in physics (for example, each metaball can represent single point charge, and electrostatic potetial due to point charge equation can be used as a falloff function).
 
-![](https://github.com/dario-zubovic/metaballs/raw/master/gif.gif)
+![](https://github.com/dario-zubovic/metaballs/raw/master/gif1.gif)
+![](https://github.com/dario-zubovic/metaballs/raw/master/gif2.gif)
 
 Metaball functions are envaluated on either GPU or CPU. GPU mode performs about 10x faster than CPU. Currently there is only one falloff functions available:
 
