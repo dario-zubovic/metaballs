@@ -1,0 +1,283 @@
+﻿#pragma kernel Calculate
+
+// Define fallof function to be used. Options: GENERIC_METABALL_FUNCTION, ELECTRIC_POTENTIAL_FUNCTION
+#define GENERIC_METABALL_FUNCTION
+
+//
+// structs and buffers associated with them
+//
+
+struct Values {
+	float edge0Val, edge1Val, edge2Val, edge3Val, edge4Val, edge5Val, edge6Val, edge7Val;
+};
+
+struct Positions {
+	float3 centerPos;
+	float3 edge0Pos, edge1Pos, edge2Pos, edge3Pos, edge4Pos, edge5Pos, edge6Pos, edge7Pos;
+};
+
+struct Vertices {
+	int index;
+	float3 edge0, edge1, edge2, edge3, edge4, edge5, edge6, edge7, edge8, edge9, edge10, edge11;
+};
+
+struct Ball {
+	float factor;
+	float3 position;
+};
+
+StructuredBuffer<Positions> positions;
+StructuredBuffer<Ball> metaballs;
+StructuredBuffer<float3> edgeMap;
+
+RWStructuredBuffer<Vertices> edgeVertices;
+
+//
+// misc variables
+//
+
+int width;
+int height;
+int numMetaballs;
+
+float threshold;
+
+//
+// lookup tables
+//
+
+static uint edgeTable[256] = {
+	0x0  , 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
+	0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
+	0x190, 0x99 , 0x393, 0x29a, 0x596, 0x49f, 0x795, 0x69c,
+	0x99c, 0x895, 0xb9f, 0xa96, 0xd9a, 0xc93, 0xf99, 0xe90,
+	0x230, 0x339, 0x33 , 0x13a, 0x636, 0x73f, 0x435, 0x53c,
+	0xa3c, 0xb35, 0x83f, 0x936, 0xe3a, 0xf33, 0xc39, 0xd30,
+	0x3a0, 0x2a9, 0x1a3, 0xaa , 0x7a6, 0x6af, 0x5a5, 0x4ac,
+	0xbac, 0xaa5, 0x9af, 0x8a6, 0xfaa, 0xea3, 0xda9, 0xca0,
+	0x460, 0x569, 0x663, 0x76a, 0x66 , 0x16f, 0x265, 0x36c,
+	0xc6c, 0xd65, 0xe6f, 0xf66, 0x86a, 0x963, 0xa69, 0xb60,
+	0x5f0, 0x4f9, 0x7f3, 0x6fa, 0x1f6, 0xff , 0x3f5, 0x2fc,
+	0xdfc, 0xcf5, 0xfff, 0xef6, 0x9fa, 0x8f3, 0xbf9, 0xaf0,
+	0x650, 0x759, 0x453, 0x55a, 0x256, 0x35f, 0x55 , 0x15c,
+	0xe5c, 0xf55, 0xc5f, 0xd56, 0xa5a, 0xb53, 0x859, 0x950,
+	0x7c0, 0x6c9, 0x5c3, 0x4ca, 0x3c6, 0x2cf, 0x1c5, 0xcc ,
+	0xfcc, 0xec5, 0xdcf, 0xcc6, 0xbca, 0xac3, 0x9c9, 0x8c0,
+	0x8c0, 0x9c9, 0xac3, 0xbca, 0xcc6, 0xdcf, 0xec5, 0xfcc,
+	0xcc , 0x1c5, 0x2cf, 0x3c6, 0x4ca, 0x5c3, 0x6c9, 0x7c0,
+	0x950, 0x859, 0xb53, 0xa5a, 0xd56, 0xc5f, 0xf55, 0xe5c,
+	0x15c, 0x55 , 0x35f, 0x256, 0x55a, 0x453, 0x759, 0x650,
+	0xaf0, 0xbf9, 0x8f3, 0x9fa, 0xef6, 0xfff, 0xcf5, 0xdfc,
+	0x2fc, 0x3f5, 0xff , 0x1f6, 0x6fa, 0x7f3, 0x4f9, 0x5f0,
+	0xb60, 0xa69, 0x963, 0x86a, 0xf66, 0xe6f, 0xd65, 0xc6c,
+	0x36c, 0x265, 0x16f, 0x66 , 0x76a, 0x663, 0x569, 0x460,
+	0xca0, 0xda9, 0xea3, 0xfaa, 0x8a6, 0x9af, 0xaa5, 0xbac,
+	0x4ac, 0x5a5, 0x6af, 0x7a6, 0xaa , 0x1a3, 0x2a9, 0x3a0,
+	0xd30, 0xc39, 0xf33, 0xe3a, 0x936, 0x83f, 0xb35, 0xa3c,
+	0x53c, 0x435, 0x73f, 0x636, 0x13a, 0x33 , 0x339, 0x230,
+	0xe90, 0xf99, 0xc93, 0xd9a, 0xa96, 0xb9f, 0x895, 0x99c,
+	0x69c, 0x795, 0x49f, 0x596, 0x29a, 0x393, 0x99 , 0x190,
+	0xf00, 0xe09, 0xd03, 0xc0a, 0xb06, 0xa0f, 0x905, 0x80c,
+	0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0
+};
+
+static int verticesAtEndsOfEdges[24] = {
+	0,  1,
+	1,  2,
+	2,  3,
+	3,  0,
+	4,  5,
+	5,  6,
+	6,  7,
+	7,  4,
+	0,  4,
+	1,  5,
+	2,  6,
+	3,  7
+};
+
+//
+// helper functions
+//
+
+int findIndex(Values edgeValue) {
+	int cubeIndex = 0;
+
+	if (edgeValue.edge0Val > threshold) {
+		cubeIndex += 1;
+	}
+	if (edgeValue.edge1Val > threshold) {
+		cubeIndex += 2;
+	}
+	if (edgeValue.edge2Val > threshold) {
+		cubeIndex += 4;
+	}
+	if (edgeValue.edge3Val > threshold) {
+		cubeIndex += 8;
+	}
+	if (edgeValue.edge4Val > threshold) {
+		cubeIndex += 16;
+	}
+	if (edgeValue.edge5Val > threshold) {
+		cubeIndex += 32;
+	}
+	if (edgeValue.edge6Val > threshold) {
+		cubeIndex += 64;
+	}
+	if (edgeValue.edge7Val > threshold) {
+		cubeIndex += 128;
+	}
+
+	return cubeIndex;
+}
+
+float getValueAtEdge(Values val, int i) {
+	if (i == 0) {
+		return val.edge0Val;
+	}
+	else if (i == 1) {
+		return val.edge1Val;
+	}
+	else if (i == 2) {
+		return val.edge2Val;
+	}
+	else if (i == 3) {
+		return val.edge3Val;
+	}
+	else if (i == 4) {
+		return val.edge4Val;
+	}
+	else if (i == 5) {
+		return val.edge5Val;
+	}
+	else if (i == 6) {
+		return val.edge6Val;
+	}
+	else {
+		return val.edge7Val;
+	}
+}
+
+Values zeroValuesStruct() {
+	Values val;
+	val.edge0Val = 0;
+	val.edge1Val = 0;
+	val.edge2Val = 0;
+	val.edge3Val = 0;
+	val.edge4Val = 0;
+	val.edge5Val = 0;
+	val.edge6Val = 0;
+	val.edge7Val = 0;
+
+	return val;
+}
+
+//
+// field function evaluation
+//
+
+float metaballFalloffFunction(float factor, float3 dist) {
+#ifdef GENERIC_METABALL_FUNCTION
+	return factor / (dist.x * dist.x + dist.y * dist.y + dist.z * dist.z);
+#endif
+#ifdef ELECTRIC_POTENTIAL_FUNCTION
+	return 8.987551788e9 * factor / sqrt(dist.x * dist.x + dist.y * dist.y + dist.z * dist.z);
+#endif
+}
+
+Values evaluateFieldFunction(int pos) {
+	Values edgeValues = zeroValuesStruct();
+
+	for (int i = 0; i < numMetaballs; i++) {
+		float3 dist = positions[pos].edge0Pos - metaballs[i].position;
+		edgeValues.edge0Val += metaballFalloffFunction(metaballs[i].factor, dist);
+
+		dist = positions[pos].edge1Pos - metaballs[i].position;
+		edgeValues.edge1Val += metaballFalloffFunction(metaballs[i].factor, dist);
+
+		dist = positions[pos].edge2Pos - metaballs[i].position;
+		edgeValues.edge2Val += metaballFalloffFunction(metaballs[i].factor, dist);
+
+		dist = positions[pos].edge3Pos - metaballs[i].position;
+		edgeValues.edge3Val += metaballFalloffFunction(metaballs[i].factor, dist);
+
+		dist = positions[pos].edge4Pos - metaballs[i].position;
+		edgeValues.edge4Val += metaballFalloffFunction(metaballs[i].factor, dist);
+
+		dist = positions[pos].edge5Pos - metaballs[i].position;
+		edgeValues.edge5Val += metaballFalloffFunction(metaballs[i].factor, dist);
+
+		dist = positions[pos].edge6Pos - metaballs[i].position;
+		edgeValues.edge6Val += metaballFalloffFunction(metaballs[i].factor, dist);
+
+		dist = positions[pos].edge7Pos - metaballs[i].position;
+		edgeValues.edge7Val += metaballFalloffFunction(metaballs[i].factor, dist);
+	}
+
+	return edgeValues;
+}
+
+//
+// computer shader kernel
+//
+
+[numthreads(8,8,8)]
+void Calculate(uint3 id : SV_DispatchThreadID) {
+	int pos = id.x + width * (id.y + height * id.z);
+
+	// find scalar values of a field on this position
+	Values edgeValues = evaluateFieldFunction(pos);
+
+	// partial marching cubes algorithm
+
+	int cubeIndex = findIndex(edgeValues);
+	int pattern = edgeTable[cubeIndex];
+
+	float3 verticesArr[12] = {
+		float3(0, 0, 0),
+		float3(0, 0, 0),
+		float3(0, 0, 0),
+		float3(0, 0, 0),
+		float3(0, 0, 0),
+		float3(0, 0, 0),
+		float3(0, 0, 0),
+		float3(0, 0, 0),
+		float3(0, 0, 0),
+		float3(0, 0, 0),
+		float3(0, 0, 0),
+		float3(0, 0, 0)
+	};
+
+	for (int edge = 0; edge < 12; edge++) {
+		if ((pattern & 1 << edge) != 0) {
+			int vertIndex0 = verticesAtEndsOfEdges[(int)(edge * 2)];
+			int vertIndex1 = verticesAtEndsOfEdges[(int)(edge * 2 + 1)];
+
+			float vertValue0 = getValueAtEdge(edgeValues, vertIndex0);
+			float vertValue1 = getValueAtEdge(edgeValues, vertIndex1);
+
+			float3 vertPosition0 = positions[pos].centerPos + edgeMap[vertIndex0];
+			float3 vertPosition1 = positions[pos].centerPos + edgeMap[vertIndex1];
+
+			float delta = (threshold - vertValue0) / (vertValue1 - vertValue0);
+
+			// lineary interpolate positions for smooth surface
+			verticesArr[edge] = vertPosition0 + delta * (vertPosition1 - vertPosition0);
+		}
+	}
+
+	// save processed data to edgeVertices buffer
+	edgeVertices[pos].index = cubeIndex;
+	edgeVertices[pos].edge0 = verticesArr[0];
+	edgeVertices[pos].edge1 = verticesArr[1];
+	edgeVertices[pos].edge2 = verticesArr[2];
+	edgeVertices[pos].edge3 = verticesArr[3];
+	edgeVertices[pos].edge4 = verticesArr[4];
+	edgeVertices[pos].edge5 = verticesArr[5];
+	edgeVertices[pos].edge6 = verticesArr[6];
+	edgeVertices[pos].edge7 = verticesArr[7];
+	edgeVertices[pos].edge8 = verticesArr[8];
+	edgeVertices[pos].edge9 = verticesArr[9];
+	edgeVertices[pos].edge10 = verticesArr[10];
+	edgeVertices[pos].edge11 = verticesArr[11];
+}

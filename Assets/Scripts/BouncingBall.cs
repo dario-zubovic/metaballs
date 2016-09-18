@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class BouncingBall : Ball {
+public class BouncingBall : MetaBall {
     public float speed;
 
     private Container container;

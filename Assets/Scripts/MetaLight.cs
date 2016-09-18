@@ -3,7 +3,7 @@ using System.Collections;
 
 [RequireComponent(typeof(Light))]
 public class MetaLight : MonoBehaviour {
-    public Ball linkedMetaball;
+    public MetaBall linkedMetaball;
     public float intensity;
 
     private float phaseShift;

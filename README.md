@@ -4,16 +4,15 @@ Unity 3D implementation of marching cubes algorithm for rendering metaballs. Met
 ![](https://github.com/dario-zubovic/metaballs/raw/master/gif1.gif)
 ![](https://github.com/dario-zubovic/metaballs/raw/master/gif2.gif)
 
-Metaball functions are envaluated on either GPU or CPU. GPU mode performs about 10x faster than CPU. Currently there is only one falloff functions available:
+Metaball functions are evaluated on GPU. Falloff functions can be chosen in the compute shader with a define statements. Marching cubes algorithm partially executes on GPU and partially on CPU.
 
-```f(d) = r^2 / d^2```
-
-Where *r* is radius of the metaball, and *d* is distance from metaball's center to current point. Additional functions can be quickly added as a new compute shader.
+Thanks to Filip Ugrin for providing 3d models for example scene!
 
 ## TODO list:
-* add more falloff functions
-* move marching cubes algorithm to GPU
+* ~~move marching cubes algorithm to GPU~~ partially moved marching cubes to compute shader, but there is still room for improvement
+* implement some kind of subdivision smoothing algorithm
 * create example scene with rigidbody metaballs
+* create example scene with electric potential visualization
 
 ## References:
 * William E. Lorensen and Harvey E. Cline. 1987. Marching cubes: A high resolution 3D surface construction algorithm. In Proceedings of the 14th annual conference on Computer graphics and interactive techniques (SIGGRAPH '87), Maureen C. Stone (Ed.). ACM, New York, NY, USA, 163-169.
